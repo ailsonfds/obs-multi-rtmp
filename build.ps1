@@ -1,7 +1,7 @@
 param(
     [string]$OBS_BIN_DIR32 = "../OBS-Studio-25.0.8-Full-x86",
     [string]$OBS_BIN_DIR64 = "../OBS-Studio-25.0.8-Full-x64",
-    [string]$OBS_SRC_DIR = "../obs-studio-25.0.8",
+    [string]$OBS_SRC_DIR = "../obs-studio",
     [string]$QTROOT = "C:/QtDep"
 )
 
@@ -12,9 +12,10 @@ Set-PSDebug -Trace 1
 $QTDIR32 = [System.IO.Directory]::GetDirectories("c:/QtDep/", "msvc2017", 1)[0].Replace("\", "/")
 $QTDIR64 = [System.IO.Directory]::GetDirectories("c:/QtDep/", "msvc2017_64", 1)[0].Replace("\", "/")
 
-$ver = (Select-String -Pattern "obs-multi-rtmp VERSION" -Path CMakeLists.txt -Raw)
+$ver = (Select-String -Pattern "obs-multi-rtmp VERSION" -Path CMakeLists.txt)
+$ver = (echo "${ver}")
 $ver = $ver.Split(" ")[2]
-$ver = $ver.Remove($ver.Length - 1)
+$ver = $ver.Remove($ver.Length - 1) 
 
 Remove-Item -Path build_x86, build_x64, dist, *.zip -Recurse -ErrorAction Ignore
 

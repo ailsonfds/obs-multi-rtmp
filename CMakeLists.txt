@@ -73,6 +73,8 @@ endif ()
 add_library(obs-multi-rtmp SHARED
     "src/obs-multi-rtmp.cpp"
     "src/obs-multi-rtmp.h"
+    "src/obs-multi-stats.cpp"
+    "src/obs-multi-stats.h"
 )
 if (WIN32)
     configure_file("src/version.rc.in" "${CMAKE_CURRENT_BINARY_DIR}/version.rc")
@@ -82,6 +84,7 @@ if (WIN32)
 endif ()
 target_include_directories(obs-multi-rtmp PRIVATE
     "${OBS_SRC_DIR}/libobs"
+    "${OBS_SRC_DIR}/UI"
     "${OBS_SRC_DIR}/UI/obs-frontend-api"
 )
 target_link_directories(obs-multi-rtmp PRIVATE

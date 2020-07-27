@@ -1,4 +1,5 @@
 ﻿#include "obs-multi-rtmp.h"
+#include "obs-multi-stats.h"
 #include "obs-module.h"
 #include "obs-frontend-api.h"
 #include "util/config-file.h"
@@ -30,67 +31,65 @@
 
 #define ConfigSection "obs-multi-rtmp"
 
-
-std::string tostdu8(const QString& qs)
+std::string tostdu8(const QString &qs)
 {
     auto b = qs.toUtf8();
     return std::string(b.begin(), b.end());
 }
 
-
 class IOBSOutputEventHanlder
 {
 public:
     virtual void OnStarting() {}
-    static void OnOutputStarting(void* x, calldata_t* param)
+    static void OnOutputStarting(void *x, calldata_t *param)
     {
-        auto thiz = static_cast<IOBSOutputEventHanlder*>(x);
+        auto thiz = static_cast<IOBSOutputEventHanlder *>(x);
         thiz->OnStarting();
     }
 
     virtual void OnStarted() {}
-    static void OnOutputStarted(void* x, calldata_t* param)
+    static void OnOutputStarted(void *x, calldata_t *param)
     {
-        auto thiz = static_cast<IOBSOutputEventHanlder*>(x);
+        auto thiz = static_cast<IOBSOutputEventHanlder *>(x);
         thiz->OnStarted();
     }
 
     virtual void OnStopping() {}
-    static void OnOutputStopping(void* x, calldata_t* param)
+    static void OnOutputStopping(void *x, calldata_t *param)
     {
-        auto thiz = static_cast<IOBSOutputEventHanlder*>(x);
+        auto thiz = static_cast<IOBSOutputEventHanlder *>(x);
         thiz->OnStopping();
     }
 
     virtual void OnStopped(int code) {}
-    static void OnOutputStopped(void* x, calldata_t* param)
+    static void OnOutputStopped(void *x, calldata_t *param)
     {
-        auto thiz = static_cast<IOBSOutputEventHanlder*>(x);
+        auto thiz = static_cast<IOBSOutputEventHanlder *>(x);
         thiz->OnStopped(calldata_int(param, "code"));
     }
 
     virtual void OnReconnect() {}
-    static void OnOutputReconnect(void* x, calldata_t* param)
+    static void OnOutputReconnect(void *x, calldata_t *param)
     {
-        auto thiz = static_cast<IOBSOutputEventHanlder*>(x);
+        auto thiz = static_cast<IOBSOutputEventHanlder *>(x);
         thiz->OnReconnect();
     }
 
     virtual void OnReconnected() {}
-    static void OnOutputReconnected(void* x, calldata_t* param)
+    static void OnOutputReconnected(void *x, calldata_t *param)
     {
-        auto thiz = static_cast<IOBSOutputEventHanlder*>(x);
+        auto thiz = static_cast<IOBSOutputEventHanlder *>(x);
         thiz->OnReconnected();
     }
 
     virtual void onDeactive() {}
-    static void OnOutputDeactive(void* x, calldata_t* param)
+    static void OnOutputDeactive(void *x, calldata_t *param)
     {
-        auto thiz = static_cast<IOBSOutputEventHanlder*>(x);
+        auto thiz = static_cast<IOBSOutputEventHanlder *>(x);
         thiz->onDeactive();
     }
 
-    void SetAsHandler(obs_output_t* output)
+    void SetAsHandler(obs_output_t *output)
     {
         auto outputSignal = obs_output_get_signal_handler(output);
         if (outputSignal)
@@ -105,7 +104,7 @@ public:
         }
     }
 
-    void DisconnectSignals(obs_output_t* output)
+    void DisconnectSignals(obs_output_t *output)
     {
         auto outputSignal = obs_output_get_signal_handler(output);
         if (outputSignal)
@@ -121,12 +120,10 @@ public:
     }
 };
 
+static QThread *s_uiThread = nullptr;
 
-
-static QThread* s_uiThread = nullptr;
-
-template<class T>
-bool RunInUIThread(T&& func)
+template <class T>
+bool RunInUIThread(T &&func)
 {
     if (s_uiThread == nullptr)
         return false;
@@ -136,37 +133,35 @@ bool RunInUIThread(T&& func)
     return true;
 }
 
-
-
 class EditOutputWidget : public QDialog
 {
     QJsonObject conf_;
-    
-    QLineEdit* name_ = 0;
-    QLineEdit* rtmp_path_ = 0;
-    QLineEdit* rtmp_key_ = 0;
 
-    QLineEdit* rtmp_user_ = 0;
-    QLineEdit* rtmp_pass_ = 0;
+    QLineEdit *name_ = 0;
+    QLineEdit *rtmp_path_ = 0;
+    QLineEdit *rtmp_key_ = 0;
 
-    QComboBox* venc_ = 0;
-    QLineEdit* v_bitrate_ = 0;
-    QLineEdit* v_keyframe_sec_ = 0;
-    QLineEdit* v_resolution_ = 0;
-    QLabel* v_warning_ = 0;
-    QComboBox* aenc_ = 0;
-    QLineEdit* a_bitrate_ = 0;
+    QLineEdit *rtmp_user_ = 0;
+    QLineEdit *rtmp_pass_ = 0;
 
-    std::vector<std::string> EnumEncodersByCodec(const char* codec)
+    QComboBox *venc_ = 0;
+    QLineEdit *v_bitrate_ = 0;
+    QLineEdit *v_keyframe_sec_ = 0;
+    QLineEdit *v_resolution_ = 0;
+    QLabel *v_warning_ = 0;
+    QComboBox *aenc_ = 0;
+    QLineEdit *a_bitrate_ = 0;
+
+    std::vector<std::string> EnumEncodersByCodec(const char *codec)
     {
         if (!codec)
             return {};
-        
+
         std::vector<std::string> result;
         int i = 0;
-        for(;;)
+        for (;;)
         {
-            const char* encid;
+            const char *encid;
             if (!obs_enum_encoder_types(i++, &encid))
                 break;
             auto enc_codec = obs_get_encoder_codec(encid);
@@ -177,9 +172,8 @@ class EditOutputWidget : public QDialog
     }
 
 public:
-    EditOutputWidget(QJsonObject conf, QWidget* parent = 0)
-        : QDialog(parent)
-        , conf_(conf)
+    EditOutputWidget(QJsonObject conf, QWidget *parent = 0)
+        : QDialog(parent), conf_(conf)
     {
         setWindowTitle(obs_module_text("StreamingSettings"));
 
@@ -344,12 +338,12 @@ public:
 
     void ConnectWidgetSignals()
     {
-        QObject::connect(venc_, (void (QComboBox::*)(int)) &QComboBox::currentIndexChanged, [this](){
+        QObject::connect(venc_, (void (QComboBox::*)(int)) & QComboBox::currentIndexChanged, [this]() {
             SaveConfig();
             LoadConfig();
             UpdateUI();
         });
-        QObject::connect(aenc_, (void (QComboBox::*)(int)) &QComboBox::currentIndexChanged, [this](){
+        QObject::connect(aenc_, (void (QComboBox::*)(int)) & QComboBox::currentIndexChanged, [this]() {
             SaveConfig();
             LoadConfig();
             UpdateUI();
@@ -359,11 +353,11 @@ public:
     void LoadEncoders()
     {
         venc_->addItem(obs_module_text("SameAsOBS"), "");
-        for(auto x : EnumEncodersByCodec("h264"))
+        for (auto x : EnumEncodersByCodec("h264"))
             venc_->addItem(obs_encoder_get_display_name(x.c_str()), x.c_str());
-        
+
         aenc_->addItem(obs_module_text("SameAsOBS"), "");
-        for(auto x : EnumEncodersByCodec("AAC"))
+        for (auto x : EnumEncodersByCodec("AAC"))
             aenc_->addItem(obs_encoder_get_display_name(x.c_str()), x.c_str());
     }
 
@@ -410,13 +404,31 @@ public:
         conf_["v-enc"] = venc_->currentData().toString();
         conf_["a-enc"] = aenc_->currentData().toString();
         if (v_bitrate_->isEnabled())
-            try { conf_["v-bitrate"] = std::stod(tostdu8(v_bitrate_->text())); } catch(...) {}
+            try
+            {
+                conf_["v-bitrate"] = std::stod(tostdu8(v_bitrate_->text()));
+            }
+            catch (...)
+            {
+            }
         if (v_keyframe_sec_->isEnabled())
-            try { conf_["v-keyframe-sec"] = std::stod(tostdu8(v_keyframe_sec_->text())); } catch(...) {}
+            try
+            {
+                conf_["v-keyframe-sec"] = std::stod(tostdu8(v_keyframe_sec_->text()));
+            }
+            catch (...)
+            {
+            }
         if (v_resolution_->isEnabled())
             conf_["v-resolution"] = v_resolution_->text();
         if (a_bitrate_->isEnabled())
-            try { conf_["a-bitrate"] = std::stod(tostdu8(a_bitrate_->text())); } catch(...) {}
+            try
+            {
+                conf_["a-bitrate"] = std::stod(tostdu8(a_bitrate_->text()));
+            }
+            catch (...)
+            {
+            }
     }
 
     void LoadConfig()
@@ -426,11 +438,11 @@ public:
             name_->setText(it->toString());
         else
             name_->setText(obs_module_text("NewStreaming"));
-        
+
         it = conf_.find("rtmp-path");
         if (it != conf_.end() && it->isString())
             rtmp_path_->setText(it->toString());
-        
+
         it = conf_.find("rtmp-key");
         if (it != conf_.end() && it->isString())
             rtmp_key_->setText(it->toString());
@@ -462,13 +474,13 @@ public:
             v_keyframe_sec_->setText(std::to_string((int)it->toDouble()).c_str());
         else
             v_keyframe_sec_->setText("3");
-        
+
         it = conf_.find("v-resolution");
         if (it != conf_.end() && it->isString())
             v_resolution_->setText(it->toString());
         else
             v_resolution_->setText("");
-        
+
         it = conf_.find("a-enc");
         if (it != conf_.end() && it->isString())
         {
@@ -485,26 +497,25 @@ public:
     }
 };
 
-
-
 class PushWidget : public QWidget, public IOBSOutputEventHanlder
 {
     QJsonObject conf_;
 
-    QPushButton* btn_ = 0;
-    QLabel* name_ = 0;
-    QLabel* fps_ = 0;
-    QLabel* msg_ = 0;
+    QPushButton *btn_ = 0;
+    QLabel *name_ = 0;
+    QLabel *fps_ = 0;
+    QLabel *msg_ = 0;
 
     using clock = std::chrono::steady_clock;
     clock::time_point last_info_time_;
     uint64_t total_frames_ = 0;
-    QTimer* timer_ = 0;
+    QTimer *timer_ = 0;
 
-    QPushButton* edit_btn_ = 0;
-    QPushButton* remove_btn_ = 0;
+    QPushButton *edit_btn_ = 0;
+    QPushButton *remove_btn_ = 0;
+    QPushButton *stats_btn_ = 0;
 
-    obs_output_t* output_ = 0;
+    obs_output_t *output_ = 0;
 
     bool ReleaseOutputService()
     {
@@ -523,7 +534,7 @@ class PushWidget : public QWidget, public IOBSOutputEventHanlder
         else
             return false;
     }
-    
+
     bool ReleaseOutputEncoder()
     {
         if (!output_)
@@ -536,7 +547,7 @@ class PushWidget : public QWidget, public IOBSOutputEventHanlder
                 obs_output_set_video_encoder(output_, nullptr);
                 obs_encoder_release(venc);
             }
-            
+
             auto aenc = obs_output_get_audio_encoder(output_, 0);
             if (aenc)
             {
@@ -554,13 +565,13 @@ class PushWidget : public QWidget, public IOBSOutputEventHanlder
     {
         if (!output_)
             return false;
-        
+
         ReleaseOutputService();
 
         auto conf = obs_data_create();
         if (!conf)
             return false;
-        
+
         obs_data_set_string(conf, "server", tostdu8(conf_["rtmp-path"].toString()).c_str());
         obs_data_set_string(conf, "key", tostdu8(conf_["rtmp-key"].toString()).c_str());
 
@@ -574,7 +585,7 @@ class PushWidget : public QWidget, public IOBSOutputEventHanlder
         }
         else
             obs_data_set_bool(conf, "use_auth", false);
-        
+
         auto service = obs_service_create("rtmp_custom", "multi-output-service", conf, nullptr);
         obs_data_release(conf);
         if (!service)
@@ -588,7 +599,7 @@ class PushWidget : public QWidget, public IOBSOutputEventHanlder
     {
         if (!output_)
             return false;
-        
+
         ReleaseOutputEncoder();
 
         std::string venc_id, aenc_id;
@@ -633,15 +644,14 @@ class PushWidget : public QWidget, public IOBSOutputEventHanlder
         // load stream encoders
         if (venc_id.empty() || aenc_id.empty())
         {
-            obs_output_t* stream_out = obs_frontend_get_streaming_output();
+            obs_output_t *stream_out = obs_frontend_get_streaming_output();
             if (!stream_out)
             {
-                auto msgbox = new QMessageBox(QMessageBox::Icon::Critical, 
-                    obs_module_text("Notice.Title"), 
-                    obs_module_text("Notice.GetEncoder"),
-                    QMessageBox::StandardButton::Ok,
-                    this
-                    );
+                auto msgbox = new QMessageBox(QMessageBox::Icon::Critical,
+                                              obs_module_text("Notice.Title"),
+                                              obs_module_text("Notice.GetEncoder"),
+                                              QMessageBox::StandardButton::Ok,
+                                              this);
                 msgbox->exec();
                 return false;
             }
@@ -662,7 +672,7 @@ class PushWidget : public QWidget, public IOBSOutputEventHanlder
         // create encoders
         if (!venc)
         {
-            obs_data_t* settings = obs_data_create();
+            obs_data_t *settings = obs_data_create();
             obs_data_set_int(settings, "bitrate", v_bitrate);
             obs_data_set_int(settings, "keyint_sec", v_keyframe_sec);
             venc = obs_video_encoder_create(venc_id.c_str(), "multi-rtmp-video-encoder", settings, nullptr);
@@ -676,7 +686,7 @@ class PushWidget : public QWidget, public IOBSOutputEventHanlder
 
         if (!aenc)
         {
-            obs_data_t* settings = obs_data_create();
+            obs_data_t *settings = obs_data_create();
             obs_data_set_int(settings, "bitrate", a_bitrate);
             aenc = obs_audio_encoder_create(aenc_id.c_str(), "multi-rtmp-audio-encoder", settings, 0, nullptr);
             obs_data_release(settings);
@@ -715,9 +725,8 @@ class PushWidget : public QWidget, public IOBSOutputEventHanlder
     }
 
 public:
-    PushWidget(QJsonObject conf, QWidget* parent = 0)
-        : QWidget(parent)
-        , conf_(conf)
+    PushWidget(QJsonObject conf, QWidget *parent = 0)
+        : QWidget(parent), conf_(conf)
     {
         QObject::setObjectName("push-widget");
 
@@ -726,7 +735,7 @@ public:
         QObject::connect(timer_, &QTimer::timeout, [this]() {
             if (output_)
                 return;
-            
+
             auto new_frames = obs_output_get_total_frames(output_);
             auto now = clock::now();
 
@@ -754,16 +763,20 @@ public:
             ShowEditDlg();
         });
 
-        layout->addWidget(remove_btn_ = new QPushButton(obs_module_text("Btn.Delete"), this), 1, 2);
+        layout->addWidget(remove_btn_ = new QPushButton(obs_module_text("Btn.Delete"), this), 2, 1);
         QObject::connect(remove_btn_, &QPushButton::clicked, [this]() {
             auto msgbox = new QMessageBox(QMessageBox::Icon::Question,
-                obs_module_text("Question.Title"),
-                obs_module_text("Question.Delete"),
-                QMessageBox::Yes | QMessageBox::No,
-                this
-            );
+                                          obs_module_text("Question.Title"),
+                                          obs_module_text("Question.Delete"),
+                                          QMessageBox::Yes | QMessageBox::No,
+                                          this);
             if (msgbox->exec() == QMessageBox::Yes)
                 delete this;
+        });
+
+        layout->addWidget(stats_btn_ = new QPushButton(obs_module_text("Btn.Stats"), this), 2, 0);
+        QObject::connect(remove_btn_, &QPushButton::clicked, [this]() {
+            ShowStatsWindow();
         });
 
         layout->addWidget(msg_ = new QLabel(u8"", this), 2, 0, 1, 3);
@@ -800,9 +813,8 @@ public:
 
     void StartStop()
     {
-        if (output_ == nullptr
-            || (output_ != nullptr && obs_output_active(output_) == false)
-        ){
+        if (output_ == nullptr || (output_ != nullptr && obs_output_active(output_) == false))
+        {
             // recreate output
             ReleaseOutput();
 
@@ -857,6 +869,11 @@ public:
             return false;
     }
 
+    void ShowStatsWindow()
+    {
+        auto wnd = new StatsWidget(this, true);
+    }
+
     void SetMsg(QString msg)
     {
         msg_->setText(msg);
@@ -866,8 +883,7 @@ public:
     // obs logical
     void OnStarting() override
     {
-        RunInUIThread([this]()
-        {
+        RunInUIThread([this]() {
             remove_btn_->setEnabled(false);
             btn_->setEnabled(false);
             SetMsg(obs_module_text("Status.Connecting"));
@@ -931,34 +947,32 @@ public:
             btn_->setEnabled(true);
             SetMsg(u8"");
 
-            switch(code)
+            switch (code)
             {
-                case 0:
-                    SetMsg(u8"");
-                    break;
-                case -1:
-                    SetMsg(obs_module_text("Error.WrongRTMPUrl"));
-                    break;
-                case -2:
-                    SetMsg(obs_module_text("Error.ServerConnect"));
-                    break;
-                case -3:
-                    SetMsg(obs_module_text("Error.ServerHandshake"));
-                    break;
-                case -4:
-                    SetMsg(obs_module_text("Error.ServerRefuse"));
-                    break;
-                default:
-                    SetMsg(obs_module_text("Error.Unknown"));
-                    break;
+            case 0:
+                SetMsg(u8"");
+                break;
+            case -1:
+                SetMsg(obs_module_text("Error.WrongRTMPUrl"));
+                break;
+            case -2:
+                SetMsg(obs_module_text("Error.ServerConnect"));
+                break;
+            case -3:
+                SetMsg(obs_module_text("Error.ServerHandshake"));
+                break;
+            case -4:
+                SetMsg(obs_module_text("Error.ServerRefuse"));
+                break;
+            default:
+                SetMsg(obs_module_text("Error.Unknown"));
+                break;
             }
         });
 
         ReleaseOutputEncoder();
     }
 };
-
-
 
 class MultiOutputWidget : public QDockWidget
 {
@@ -967,9 +981,8 @@ class MultiOutputWidget : public QDockWidget
     bool reopenShown_;
 
 public:
-    MultiOutputWidget(QWidget* parent = 0)
-        : QDockWidget(parent)
-        , reopenShown_(false)
+    MultiOutputWidget(QWidget *parent = 0)
+        : QDockWidget(parent), reopenShown_(false)
     {
         setWindowTitle(obs_module_text("Title"));
         setFeatures((DockWidgetFeatures)(AllDockWidgetFeatures & ~DockWidgetClosable));
@@ -977,7 +990,6 @@ public:
         // save dock location
         QObject::connect(this, &QDockWidget::dockLocationChanged, [this](Qt::DockWidgetArea area) {
             dockLocation_ = area;
-            
         });
 
         scroll_ = new QScrollArea(this);
@@ -1000,7 +1012,7 @@ public:
         if (std::string(u8"多路推流") == obs_module_text("Title"))
             layout_->addWidget(new QLabel(u8"本插件免费提供，请不要为此付费。\n作者：雷鸣", container_));
         else
-            layout_->addWidget(new QLabel(u8"This plugin provided free of charge. \nAuthor: SoraYuki", container_));
+            layout_->addWidget(new QLabel(u8"This plugin provided free of charge. \nAuthor: SoraYuki\nStats Improvement by Ailson Santos", container_));
 
         // load config
         LoadConfig();
@@ -1018,16 +1030,15 @@ public:
         dockVisible_ = visible;
         return;
 
-        if (visible == false
-            && reopenShown_ == false
-            && !config_has_user_value(obs_frontend_get_global_config(), ConfigSection, "DockVisible"))
+        if (visible == false && reopenShown_ == false && !config_has_user_value(obs_frontend_get_global_config(), ConfigSection, "DockVisible"))
         {
             reopenShown_ = true;
-            QMessageBox(QMessageBox::Icon::Information, 
-                obs_module_text("Notice.Title"), 
-                obs_module_text("Notice.Reopen"), 
-                QMessageBox::StandardButton::Ok,
-                this).exec();
+            QMessageBox(QMessageBox::Icon::Information,
+                        obs_module_text("Notice.Title"),
+                        obs_module_text("Notice.Reopen"),
+                        QMessageBox::StandardButton::Ok,
+                        this)
+                .exec();
         }
     }
 
@@ -1040,14 +1051,14 @@ public:
         return QDockWidget::event(event);
     }
 
-    std::vector<PushWidget*> GetAllPushWidgets()
+    std::vector<PushWidget *> GetAllPushWidgets()
     {
-        std::vector<PushWidget*> result;
-        for(auto& c : container_->children())
+        std::vector<PushWidget *> result;
+        for (auto &c : container_->children())
         {
             if (c->objectName() == "push-widget")
             {
-                auto w = static_cast<PushWidget*>(c);
+                auto w = static_cast<PushWidget *>(c);
                 result.push_back(w);
             }
         }
@@ -1056,14 +1067,14 @@ public:
 
     void StopAll()
     {
-        for(auto x : GetAllPushWidgets())
+        for (auto x : GetAllPushWidgets())
             x->Stop();
     }
 
     void SaveConfig()
     {
         QJsonArray targetlist;
-        for(auto x : GetAllPushWidgets())
+        for (auto x : GetAllPushWidgets())
             targetlist.append(x->Config());
         QJsonObject root;
         root["targets"] = targetlist;
@@ -1090,7 +1101,7 @@ public:
         auto targets = conf.find("targets");
         if (targets != conf.end() && targets->isArray())
         {
-            for(auto x : targets->toArray())
+            for (auto x : targets->toArray())
             {
                 if (x.isObject())
                 {
@@ -1102,13 +1113,11 @@ public:
     }
 
 private:
-    QWidget* container_ = 0;
-    QScrollArea* scroll_ = 0;
-    QGridLayout* layout_ = 0;
-    QPushButton* addButton_ = 0;
+    QWidget *container_ = 0;
+    QScrollArea *scroll_ = 0;
+    QGridLayout *layout_ = 0;
+    QPushButton *addButton_ = 0;
 };
-
-
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("obs-multi-rtmp", "en-US")
@@ -1118,8 +1127,8 @@ bool obs_module_load()
 {
     if (obs_get_version() < MAKE_SEMANTIC_VERSION(25, 0, 0))
         return false;
-    
-    auto mainwin = (QMainWindow*)obs_frontend_get_main_window();
+
+    auto mainwin = (QMainWindow *)obs_frontend_get_main_window();
     if (mainwin == nullptr)
         return false;
     QMetaObject::invokeMethod(mainwin, []() {
@@ -1127,7 +1136,7 @@ bool obs_module_load()
     });
 
     auto dock = new MultiOutputWidget(mainwin);
-    auto action = (QAction*)obs_frontend_add_dock(dock);
+    auto action = (QAction *)obs_frontend_add_dock(dock);
     QObject::connect(action, &QAction::toggled, dock, &MultiOutputWidget::visibleToggled);
 
     // begin work around obs not remember dock geometry added by obs_frontend_add_dock
@@ -1160,11 +1169,11 @@ bool obs_module_load()
         [](enum obs_frontend_event event, void *private_data) {
             if (event == obs_frontend_event::OBS_FRONTEND_EVENT_EXIT)
             {
-                static_cast<MultiOutputWidget*>(private_data)->SaveConfig();
-                static_cast<MultiOutputWidget*>(private_data)->StopAll();
+                static_cast<MultiOutputWidget *>(private_data)->SaveConfig();
+                static_cast<MultiOutputWidget *>(private_data)->StopAll();
             }
-        }, dock
-    );
+        },
+        dock);
 
     return true;
 }
